@@ -24,6 +24,6 @@ app.use(express.json()) // allow JSON data
 
 app.use('/api/sauces', sauceRoutes)
 app.use('/api/auth', userRoutes)
-app.use('/images', express.static(path.join(__dirname, 'file-upload')))    //
+app.use('/images', express.static(path.join(__dirname, 'images')))    //
 
 module.exports = app;
