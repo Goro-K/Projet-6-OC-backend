@@ -4,13 +4,20 @@ const mongoose = require('mongoose');
 const sauceRoutes = require('./routes/sauces');
 const userRoutes = require('./routes/user');
 const path = require('path')
+const dotenv = require('dotenv')
+dotenv.config
 
+const MONGODB_USERNAME = process.env.MONGO_USERNAME
+const MONGODB_PASSWORD = process.env.MONGO_PASSWORD
 
-mongoose.connect('mongodb+srv://romanK:eBkOZcJoDCrYCgIi@cluster0.ylzalyd.mongodb.net/?retryWrites=true&w=majority',
-{   useNewUrlParser: true,
+mongoose.connect(`mongodb+srv://RomanK:5YdSv4UxJ2M2DRNB@cluster0.4qekfkx.mongodb.net/?retryWrites=true&w=majority`, 
+    {useNewUrlParser: true, 
     useUnifiedTopology: true })
-    .then(() => console.log('Connexion à MongoDB réussie !'))
-    .catch(() => console.log('Connexion à MongoDB échouée !'));
+    try {
+        console.log('Connexion à MongoDB réussie !')
+    }   catch {
+        console.log('Connexion à MongoDB échouée !')
+    }
 
 
 app.use((req,res,next)=>{
