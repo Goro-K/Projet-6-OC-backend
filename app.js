@@ -10,15 +10,11 @@ dotenv.config
 const MONGODB_USERNAME = process.env.MONGO_USERNAME
 const MONGODB_PASSWORD = process.env.MONGO_PASSWORD
 
-mongoose.connect(`mongodb+srv://RomanK:5YdSv4UxJ2M2DRNB@cluster0.4qekfkx.mongodb.net/?retryWrites=true&w=majority`, 
+mongoose.connect(`mongodb+srv://RomanK:3UWNm3zIvyuYGbtG@cluster0.4qekfkx.mongodb.net/?retryWrites=true&w=majority`, 
     {useNewUrlParser: true, 
     useUnifiedTopology: true })
-    try {
-        console.log('Connexion à MongoDB réussie !')
-    }   catch {
-        console.log('Connexion à MongoDB échouée !')
-    }
-
+    .then(() => console.log('Connexion à MongoDB réussie !'))
+    .catch(() => console.log('Connexion à MongoDB échouée !'));
 
 app.use((req,res,next)=>{
     res.setHeader('Access-Control-Allow-Origin', '*');

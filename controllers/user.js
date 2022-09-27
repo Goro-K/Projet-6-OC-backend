@@ -17,8 +17,13 @@ exports.signup = async (req, res) => {
     // Défini le mdp de l'utilisateur sur un mdp haché
     user.password = await bcrypt.hash(user.password, 10)
     user.save()
-        .then(() => res.status(201).json({message: 'Utilisateur crée'}))
-        .catch(error => res.status(400).json({error}));
+    try {
+        res.status(201).json({message: 'Utilisateur crée'})
+    }   catch(error) {
+        console.log(error)
+        res.status(400).json({error})
+    }
+
 }
 
 // Connexion de l'utilisateur 

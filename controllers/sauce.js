@@ -25,7 +25,6 @@ exports.createSauce = async (req, res) => {
         return
     }
 
-
     try {
         const sauceParsed = JSON.parse(sauceObject)
 
@@ -38,11 +37,6 @@ exports.createSauce = async (req, res) => {
             userId: req.auth.userId,
             imageUrl : `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
         })
-
-        if(sauce.body === null || sauce === undefined) {
-            console.log(sauceParsed)
-            return
-        }
 
         sauce.save()
 
@@ -65,13 +59,11 @@ exports.modifySauce = async (req, res) => {
         imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
     } : { ...req.body }; // recupere l'objet s'il a déjà été transmis
 
-    delete sauceObject._userId // pour eviter qu'un user crée un objet à son nom puis le modifie pour l'assigner à quelqu'un d'autre
+    delete sauceObject.userId // pour eviter qu'un user crée un objet à son nom puis le modifie pour l'assigner à quelqu'un d'autre
     
-    await Sauce.findOne({_id: req.params.id})
+    const sauce = await Sauce.findOne({_id: req.params.id})
         try {
-            if(Sauce.userId != req.auth.userId) {
-                res.status(401).json({message: 'Non-Autorisé'})
-            } else {
+            if(sauce.userId = req.auth.userId) {
                 Sauce.updateOne({ _id: req.params.id }, { ...sauceObject, _id: req.params.id })
                 try {
                     res.status(200).json({message: 'Sauce modifié !'})
@@ -79,6 +71,8 @@ exports.modifySauce = async (req, res) => {
                         console.log(error)
                         res.status(400).json({error})
                 }
+            } else {
+                res.status(403).json({message: 'Non-Autorisé'})
             }
         }   catch(error) {
             console.log(error)
@@ -97,13 +91,13 @@ exports.getOneSauce = async (req, res) => {
 }
 
 exports.deleteOneSauce = async (req,res) => {
-    await Sauce.findOne({ _id: req.params.id })
+    const sauce = await Sauce.findOne({ _id: req.params.id })
     try {
-        if(Sauce._userId != req.auth.userId) {
+        if(sauce.userId != req.auth.userId) {
             res.status(403).json({message : 'Non-autorisé'})
         }
         else {
-            await Sauce.deleteOne({ _id: res.params.id })
+            await Sauce.deleteOne({ _id: req.params.id })
             try {
                 res.status(200).json({message: 'Sauce supprimé'})
             }   catch(error) {
@@ -124,3 +118,8 @@ exports.deleteAllSauce =  (req, res) => {
         .catch(error => res.status(401).json({error}))
 };
 */
+
+
+exports.likeSauce = async (req, res) => {
+
+}
