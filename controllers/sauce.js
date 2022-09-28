@@ -94,7 +94,7 @@ exports.deleteOneSauce = async (req,res) => {
     const sauce = await Sauce.findOne({ _id: req.params.id })
     try {
         if(sauce.userId != req.auth.userId) {
-            res.status(403).json({message : 'Non-autorisé'})
+            res.status(403).json({message : 'No-Authorized'})
         }
         else {
             await Sauce.deleteOne({ _id: req.params.id })
@@ -120,6 +120,48 @@ exports.deleteAllSauce =  (req, res) => {
 */
 
 
-exports.likeSauce = async (req, res) => {
+exports.likeAndDislike = async (req, res) => {
+    const likeStatus = req.body.likes
+    const userId = req.body.userId
+    
+    // If the user like the sauce the like is increase to one
+    if(likeStatus === 1) {
+        await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: +1 }, $push:{ usersLiked: userId } })
+        try {
+            res.status(200).json({message: 'Like has been increased'})
+        } catch {
+            console.log(error)
+            res.status(400).json({ error })
+        }
+    }
 
+    
+    if(likeStatus === 0) {
+        await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: -1 }, $pull:{ usersLikes: userId }})
+        try {
+            res.status(200).json({ message: 'Like has been decreased'})
+        }   catch(error) {
+            res.status(400).json({ error })
+        }
+
+        Sauce.updateOne({ _id: req.params.id }, { $inc:{dislikes: -1 }, $pull: { usersDisliked: userId }})
+        try {
+            res.status(200).json({ message: 'Dislike has been decreased'})
+        }   catch(error) {
+            console.log(error)
+            res.status(400).json({ error })
+        }
+    Promise.all()
+    }
+
+    //If user don't like the sauce  
+    if(likeStatus === -1) {
+        await Sauce.updateOne({ _id: req.params.id }, { $inc: { dislikes: +1} }, { $push: { usersDisliked: userId}})
+        try {
+            res.status(200).json({ message: 'Dislike has been increased'})
+        }   catch(error){
+            console.log(error)
+            res.status(400).json({ error })
+        }
+    }
 }
