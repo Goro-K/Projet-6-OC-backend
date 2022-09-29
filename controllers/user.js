@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 
 
-// Inscription de l'utilisateur
+// User registration
 
 exports.signup = async (req, res) => {
     const body = req.body;
@@ -12,13 +12,13 @@ exports.signup = async (req, res) => {
         return res.status(400).json({error});
     }
 
-    // crée un nouveau user via la BDD mongoose User
+    // creates a new user via the database mongoose
     const user = new User(body);
-    // Défini le mdp de l'utilisateur sur un mdp haché
+    // Sets the user's password to a hashed password
     user.password = await bcrypt.hash(user.password, 10)
     user.save()
     try {
-        res.status(201).json({message: 'Utilisateur crée'})
+        res.status(201).json({message: 'User created'})
     }   catch(error) {
         console.log(error)
         res.status(400).json({error})
@@ -26,7 +26,7 @@ exports.signup = async (req, res) => {
 
 }
 
-// Connexion de l'utilisateur 
+// User login 
 
 exports.login = async (req, res) => {
     const body = req.body;
@@ -45,9 +45,9 @@ exports.login = async (req, res) => {
                 )
             })
         } else {
-            res.status(401).json({ message : 'Paire identifiant/mot de passe incorrecte' })
+            res.status(401).json({ message : 'Incorrect username/password pair' })
         }
     } else {
-        res.status(401).json({ message : 'Paire identifiant/mot de passe incorrecte' })
+        res.status(401).json({ message : 'Incorrect username/password pair' })
     }
 }
