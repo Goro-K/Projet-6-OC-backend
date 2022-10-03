@@ -2,6 +2,27 @@ const { json } = require('express');
 const auth = require('../middleware/auth');
 const Sauce = require('../models/Sauce')
 
+async function verifField(res, sauceObject) {
+    try {
+        sauceParsed = JSON.parse(sauceObject)  
+    } catch(error) {
+        console.log(error)
+        res.status(400).json({message : 'A field is not valid'})  // because the user goes through the api to add a sauce with a missing element
+        return
+    }
+}
+/*
+async function errorOnSauceId(sauce, res) {
+    try {
+        sauce = await Sauce.findOne({_id: req.params.id})
+    }  catch {
+        if(!sauce) {
+            res.status(400).json({message : 'Non-existent sauce'})
+            return
+        }
+    }
+}
+*/
 exports.getAllSauce = async (req, res) => {
     const sauces = await Sauce.find()        // allows to find all the objects
         try {
@@ -28,17 +49,13 @@ exports.createSauce = async (req, res) => {
 
     let sauceParsed
 
-    try {
-        sauceParsed = JSON.parse(sauceObject)
-        
-    } catch(error) {
-        console.log(error)
-        res.status(400).json({message : 'A field is not valid'})        // because the user goes through the api to add a sauce with a missing element
-        return
-    }
+    verifField(res, sauceObject)
+
+    sauceParsed = JSON.parse(sauceObject)
 
     delete sauceParsed._id   // Delete the id to later generate a new id for the database
-    delete sauceParsed._userId   // Delete the id of the person who created the object
+    delete sauceParsed.userId   // Delete the id of the person who created the object
+
     const sauce = new Sauce({
         ...sauceParsed,
         likes : 0,
@@ -60,28 +77,41 @@ exports.createSauce = async (req, res) => {
 
 exports.modifySauce = async (req, res) => {
     // Try catch sur le parse et verifier que body n'est pas vide
+    let sauceObject
 
-    let sauceObject 
-    if(req.file) {
-        if(!re)
-        sauceObject = {
-            ...JSON.parse(req.body.sauce),
-            imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
+    if (req.file) {
+        try {
+            sauceObject = {
+                ...JSON.parse(req.body.sauce),
+                imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
+            }
         }
-    } else {
+        catch(error){
+            if(!req.body.sauce) {
+                res.status(400).json({message : 'Sauce manquante'})
+                return
+            }
+        }
+    }   
+    else {
         sauceObject = req.body
     }
-    
-/*
-    const sauceObject = req.file ? {
-        ...JSON.parse(req.body.sauce),
-        imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
-    } : req.body ; // retrieves the object if it has already been transmitted
-*/
+    console.log(sauceObject)
 
     delete sauceObject.userId // to prevent a user from creating an object in their name and then modifying it to assign it to someone else
-    
-    const sauce = await Sauce.findOne({_id: req.params.id})
+
+    let sauce 
+
+    try {
+        sauce = await Sauce.findOne({_id: req.params.id})
+    }  catch {
+        if(!sauce) {
+            res.status(400).json({message : 'Non-existent sauce'})
+            return
+        }
+    }
+
+    sauce = await Sauce.findOne({_id: req.params.id})
 
     if(!sauce) {
         res.status(404).json({message : 'Missing sauce'})
@@ -94,7 +124,7 @@ exports.modifySauce = async (req, res) => {
     }
 
     try {
-        await sauce.updateOne({ _id: req.params.id }, { ...sauceObject, _id: req.params.id })
+        await sauce.updateOne({ _id: req.params.id, ...sauceObject })
         res.status(200).json({message: 'Modified sauce !'})
     } catch(error) {
         console.log(error)
@@ -103,7 +133,19 @@ exports.modifySauce = async (req, res) => {
 };
 
 exports.getOneSauce = async (req, res) => {
-    const sauce = await Sauce.findOne({ _id: req.params.id})
+    let sauce 
+
+    try {
+        sauce = await Sauce.findOne({_id: req.params.id})
+    }  catch {
+        if(!sauce) {
+            res.status(400).json({message : 'Non-existent sauce'})
+            return
+        }
+    }
+
+    sauce = await Sauce.findOne({_id: req.params.id})
+
     try {
         res.status(200).json(sauce)
     } catch (error) {
@@ -113,7 +155,18 @@ exports.getOneSauce = async (req, res) => {
 }
 
 exports.deleteOneSauce = async (req,res) => {
-    const sauce = await Sauce.findOne({ _id: req.params.id })
+    let sauce
+
+    try {
+        sauce = await Sauce.findOne({_id: req.params.id})
+    }  catch {
+        if(!sauce) {
+            res.status(400).json({message : 'Non-existent sauce'})
+            return
+        }
+    }
+
+    sauce = await Sauce.findOne({_id: req.params.id})
     try {
         if(sauce.userId != req.auth.userId) {
             res.status(403).json({message : 'Unauthorized request.'})
@@ -132,14 +185,6 @@ exports.deleteOneSauce = async (req,res) => {
         res.status(400).json({error})
     }
 }
-
-/*
-exports.deleteAllSauce =  (req, res) => {
-    Sauce.deleteMany()
-        .then(() => { res.status(200).json({message : 'Objet supprimé'})})
-        .catch(error => res.status(401).json({error}))
-};
-*/
 
 
 exports.likeAndDislike = async (req, res) => {
@@ -188,3 +233,20 @@ exports.likeAndDislike = async (req, res) => {
         res.status(400).json({ message : "numero " })
     }
 }
+
+
+
+/*
+    const sauceObject = req.file ? {
+        ...JSON.parse(req.body.sauce),
+        imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
+    } : req.body ; // retrieves the object if it has already been transmitted
+*/
+
+/*
+exports.deleteAllSauce =  (req, res) => {
+    Sauce.deleteMany()
+        .then(() => { res.status(200).json({message : 'Objet supprimé'})})
+        .catch(error => res.status(401).json({error}))
+};
+*/
