@@ -11,8 +11,8 @@ async function verifField(res, sauceObject) {
         return
     }
 }
-/*
-async function errorOnSauceId(sauce, res) {
+
+async function errorOnSauceId(sauce, res, req) {
     try {
         sauce = await Sauce.findOne({_id: req.params.id})
     }  catch {
@@ -22,7 +22,8 @@ async function errorOnSauceId(sauce, res) {
         }
     }
 }
-*/
+
+
 exports.getAllSauce = async (req, res) => {
     const sauces = await Sauce.find()        // allows to find all the objects
         try {
@@ -87,8 +88,8 @@ exports.modifySauce = async (req, res) => {
             }
         }
         catch(error){
-            if(!req.body.sauce) {
-                res.status(400).json({message : 'Sauce manquante'})
+            if(!sauceObject) {               // S'il n'y a pas de sauce ou champ manquant/vide
+                res.status(400).json({message : 'Sauce manquante ou champ manquant/vide'})
                 return
             }
         }
@@ -96,6 +97,26 @@ exports.modifySauce = async (req, res) => {
     else {
         sauceObject = req.body
     }
+/*
+    if(sauceObject == ' ') {    // Si chaine de caractère vide
+        res.status(400).json({message : 'Aucun nom n'a été donné'})
+        return
+    }
+
+    if(sauceObject.likes > 0 || sauceObject.dislikes > 0) {           // evite d'ajouter des likes/dislikes à l'infini
+        res.status(403).json({message : 'Unauthorized request.'})
+        return
+    }
+
+    if(sauceObject.usersLiked.length > 0 || sauceObject.usersDisliked.length > 0) {   // évite d'ajouter des users inexistant ou des users qui like qui n'ont pas like
+        res.status(403).json({message : 'Unauthorized request.'})
+        return
+    }
+
+    if(!sauceObject.imageUrl) { // En cas de modification d'un lien d'une image (lien inexistant)
+        res.status(404).json({message : 'Image Inexistante'})
+    }
+*/
     console.log(sauceObject)
 
     delete sauceObject.userId // to prevent a user from creating an object in their name and then modifying it to assign it to someone else
@@ -122,9 +143,14 @@ exports.modifySauce = async (req, res) => {
         res.status(403).json({message : 'Unauthorized request.'})
         return
     }
-
+/*
+    if(sauce == '') {   // Si un champ possède une chaine de caractère vide
+        res.status(400).json({message : 'Invalid field'})  
+    }
+*/
     try {
         await sauce.updateOne({ _id: req.params.id, ...sauceObject })
+        console.log(sauce)
         res.status(200).json({message: 'Modified sauce !'})
     } catch(error) {
         console.log(error)
@@ -135,11 +161,11 @@ exports.modifySauce = async (req, res) => {
 exports.getOneSauce = async (req, res) => {
     let sauce 
 
-    try {
+    try {        
         sauce = await Sauce.findOne({_id: req.params.id})
     }  catch {
         if(!sauce) {
-            res.status(400).json({message : 'Non-existent sauce'})
+            res.status(400).json({message : 'Non-existent sauce'})  // get une sauce qui n'existe pas
             return
         }
     }
@@ -190,7 +216,7 @@ exports.deleteOneSauce = async (req,res) => {
 exports.likeAndDislike = async (req, res) => {
     const likeStatus = req.body.like
     const userId = req.body.userId
-    console.log("toto")
+
     // If the user like the sauce the like is increase to one
     if(likeStatus === 1) {
         try {
@@ -203,16 +229,20 @@ exports.likeAndDislike = async (req, res) => {
     }
 
     // If the user decides to remove their like or dislike
+
     else if(likeStatus === 0) {
         try {
-            await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: -1 }, $pull:{ usersLikes: userId }})
+            await Sauce.updateOne({ _id: req.params.id, likes: 1, usersLikes: userId }, { $inc:{ likes: -1 }, $pull:{ usersLikes: userId }})
             res.status(200).json({ message: 'Like has been decreased'})
         }   catch(error) {
             res.status(400).json({ error })
         }
+    }
 
+
+    else if(likeStatus === 0) {
         try {
-            Sauce.updateOne({ _id: req.params.id }, { $inc:{dislikes: -1 }, $pull: { usersDisliked: userId }})
+            await Sauce.updateOne({ _id: req.params.id, dislikes: 1, usersDisliked: userId }, { $inc:{dislikes: -1 }, $pull: { usersDisliked: userId }})
             res.status(200).json({ message: 'Dislike has been decreased'})
         }   catch(error) {
             console.log(error)
@@ -229,8 +259,6 @@ exports.likeAndDislike = async (req, res) => {
             console.log(error)
             res.status(400).json({ error })
         }
-    } else {
-        res.status(400).json({ message : "numero " })
     }
 }
 
