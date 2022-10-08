@@ -215,8 +215,9 @@ exports.likeAndDislike = async (req, res) => {
                     res.status(400).json({ error })
                 }
             }
-
-            else if(user == sauce.usersDisliked) {
+        })
+        sauce.usersDisliked.forEach(async user => {
+            if(user == sauce.usersDisliked) {
                 try {
                     await Sauce.updateOne({ _id: req.params.id }, { $inc:{ dislikes: -1 }, $pull: { usersDisliked: userId }})
                     res.status(200).json({ message: 'Dislike has been decreased'})
