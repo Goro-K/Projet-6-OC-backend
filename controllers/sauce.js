@@ -99,6 +99,7 @@ exports.modifySauce = async (req, res) => {
             }
         }
         catch(error){
+            console.log(error)
             if(!sauceObject) {               // S'il n'y a pas de sauce ou champ manquant/vide
                 res.status(400).json({message : 'Sauce manquante ou champ manquant/vide'})
                 return
@@ -108,9 +109,11 @@ exports.modifySauce = async (req, res) => {
     else {
         sauceObject = req.body
     }
-/*
-    if(sauceObject.name.trim() == '' || ) {    // Si chaine de caractère vide
-        res.status(400).json({message : 'Aucun nom n'a été donné'})
+
+    const sauceField = sauceObject.name || sauceObject.manufacturer|| sauceObject.description || sauceObject.mainPepper || sauceObject.heat;
+
+    if(sauceField.trim() == '') {    // Si chaine de caractère vide
+        res.status(400).json({message : 'Field empty'})
         return
     }
 /*
@@ -201,25 +204,28 @@ exports.likeAndDislike = async (req, res) => {
 
 
     else if(likeStatus === 0) {
-        const sauce = Sauce.findOne({ _id: req.params.id })
-        sauce.usersLikes
-        try {
-            await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: -1 }, $pull:{ usersLikes: userId }})
-            res.status(200).json({ message: 'Like has been decreased'})
-        }   catch(error) {
-            res.status(400).json({ error })
-        }
-    }
+        const sauce = await Sauce.findOne({ _id: req.params.id })
+        sauce.usersLiked.forEach(async user => {
+            if(user == sauce.usersLiked) {
+                console.log(user)
+                try {
+                    await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: -1 }, $pull:{ usersLiked: userId }})
+                    res.status(200).json({ message: 'Like has been decreased'})
+                }   catch(error) {
+                    res.status(400).json({ error })
+                }
+            }
 
-
-    else if(likeStatus === 0) {
-        try {
-            await Sauce.updateOne({ _id: req.params.id }, { $inc:{dislikes: -1 }, $pull: { usersDisliked: userId }})
-            res.status(200).json({ message: 'Dislike has been decreased'})
-        }   catch(error) {
-            console.log(error)
-            res.status(400).json({ error })
-        }
+            else if(user == sauce.usersDisliked) {
+                try {
+                    await Sauce.updateOne({ _id: req.params.id }, { $inc:{ dislikes: -1 }, $pull: { usersDisliked: userId }})
+                    res.status(200).json({ message: 'Dislike has been decreased'})
+                }   catch(error) {
+                    console.log(error)
+                    res.status(400).json({ error })
+                }
+            }
+        })
     }
 
     //If user don't like the sauce  
