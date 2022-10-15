@@ -1,27 +1,50 @@
 const User = require('../models/User')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const dotenv = require('dotenv')
+dotenv.config()
 
+const TOKEN = process.env.TOKEN
 
 // User registration
 
 exports.signup = async (req, res) => {
     const body = req.body;
+    console.log(body)
+    const regexMail = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)+$/
+    const passwordStringify = JSON.stringify(body.password)
+    const passwordTrim = passwordStringify.trim(passwordStringify)
+
+    if(passwordStringify !== passwordTrim) {
+        return res.status(400).json({message : "Your password cannot have whitespace"})
+    }
+    console.log(body.password)
+    if(!regexMail.test(body.email)) {
+        return res.status(400).json({message : "Incorrect email"})
+    } 
 
     if(!(body.email && body.password)) {
-        return res.status(400).json({error});
+        return res.status(400).json({message : "Incorrect username or password"});
     }
+
 
     // creates a new user via the database mongoose
     const user = new User(body);
     // Sets the user's password to a hashed password
-    user.password = await bcrypt.hash(user.password, 10)
-    user.save()
     try {
+        user.password = await bcrypt.hash(user.password, 10)
+    } catch(error) {
+        console.log(error)
+        res.status(400).json({ error })
+    }
+
+
+    try {
+        await user.save()
         res.status(201).json({message: 'User created'})
     }   catch(error) {
         console.log(error)
-        res.status(400).json({error})
+        res.status(500).json({error})
     }
 
 }
@@ -31,7 +54,14 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
     const body = req.body;
 
-    const user = await User.findOne({ email: body.email })
+    let user 
+    try {
+        user = await User.findOne({ email: body.email })
+    } catch(error) {
+        console.log(error)
+        return res.status(400).json({message : "User introuvable"})
+    }
+
     if(user) {
         const validPassword = await bcrypt.compare(body.password, user.password);
         
@@ -40,7 +70,7 @@ exports.login = async (req, res) => {
                 userId: user._id,
                 token:  jwt.sign(
                     {userId: user._id},
-                    'RANDOM_TOKEN_SECRET',
+                    TOKEN,
                     {expiresIn: '24h'}
                 )
             })

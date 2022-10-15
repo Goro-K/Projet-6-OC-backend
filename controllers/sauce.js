@@ -1,8 +1,6 @@
-const { json } = require('express');
-const auth = require('../middleware/auth');
 const Sauce = require('../models/Sauce')
 
-async function verifField(res, sauceObject) {
+async function verifyField(res, sauceObject) {
     try {
         sauceParsed = JSON.parse(sauceObject)  
     } catch(error) {
@@ -12,37 +10,12 @@ async function verifField(res, sauceObject) {
     }
 }
 
-async function getSauceAndVerifyIfExist(res, req) {
-    try {
-        let sauce = await Sauce.findOne({_id: req.params.id})
-
-        if(!sauce) {
-            res.status(404).json({message : 'Non-existent sauce'})
-            return
-        }
-
-        return sauce 
-    }  catch(error) {
-            console.log(error)
-            res.status(500).json({error})
-            return
-    }
-}
-
-/*
-        if (sauce.userId != req.auth.userId) {
-            res.status(403).json({message : 'Unauthorized request.'})
-            return
-        }
-
-*/
-
-exports.getAllSauce = async (req, res) => {
-    const sauces = await Sauce.find()        // allows to find all the objects
+exports.getAllSauces = async (req, res) => {
         try {
+            const sauces = await Sauce.find()        // allows to find all the objects
             res.status(200).json(sauces)
         }   catch(error) {
-            res.status(400).json({error})
+            res.status(500).json({ error })
         }
 };
 
@@ -63,7 +36,7 @@ exports.createSauce = async (req, res) => {
 
     let sauceParsed
 
-    verifField(res, sauceObject)
+    verifyField(res, sauceObject)
 
     sauceParsed = JSON.parse(sauceObject)
 
@@ -77,6 +50,11 @@ exports.createSauce = async (req, res) => {
         userId: req.auth.userId,
         imageUrl : `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
     })
+    
+    const userLikedOrDisliked = sauce.usersLiked || sauce.usersDisliked
+    if(userLikedOrDisliked.length > 0) {
+        return res.status(400).json({message : "UsersLiked and UsersDisliked has to be empty"})
+    }
 
     try {
         await sauce.save()
@@ -101,77 +79,55 @@ exports.modifySauce = async (req, res) => {
             }
         }
         catch(error){
-            console.log(error)
+            if(!sauceObject) {
+                res.status(404).json({message : 'Sauce manquante'}) 
+                return
+            }
+            res.status(500).json({error})
         }
     }
     else {
         sauceObject = req.body
     }
 
-    if(!sauceObject) {               // Si la sauce n'existe pas
-        res.status(404).json({message : 'Sauce manquante'})
-        return
-    }  
-
     const sauceField = !sauceObject.name  || !sauceObject.manufacturer|| !sauceObject.description || !sauceObject.mainPepper || !sauceObject.heat
 
-    if(sauceField) {           // Si champ manquant
-        res.status(400).json({message : 'Missing Field'}) 
-        return
+    if(sauceField) {          
+        return res.status(400).json({message : 'Missing Field'}) 
     }
 
     if(sauceObject.userId != req.auth.userId) {
-        return
+        return res.status(403).json({message : 'Unauthorized Request'})
     }
 
     delete sauceObject.userId // to prevent a user from creating an object in their name and then modifying it to assign it to someone else
-
-    const sauce = await getSauceAndVerifyIfExist(res, req)
-
-    if(sauce) {
-        try {
-            await sauce.updateOne({ _id: req.params.id, ...sauceObject })
-            res.status(200).json({message: 'Modified sauce !'})
-        } catch(error) {
-            console.log(error)
-            res.status(400).json({error})
-        }
+   
+    try {
+        const sauce = await Sauce.findOne({_id: req.params.id})
+        await sauce.updateOne({ _id: req.params.id, ...sauceObject })
+        res.status(200).json({message: 'Modified sauce !'})
+    } catch(error) {
+        res.status(400).json({message : 'L\'id de la sauce est inexistente'})
     }
 };
 
 exports.getOneSauce = async (req, res) => {
-    
-    let sauce 
 
     try {        
-        sauce = await Sauce.findOne({_id: req.params.id})
-    }  catch {
-        if(!sauce) {
-            res.status(400).json({message : 'Non-existent sauce'})  // get une sauce qui n'existe pas
-            return
-        }
-    }
-
-    sauce = await Sauce.findOne({_id: req.params.id})
-    try {
+        const sauce = await Sauce.findOne({_id: req.params.id})
         res.status(200).json(sauce)
-    } catch (error) {
-        console.log(error)
-        res.status(404).json({error})
+    }  catch(error) {
+        res.status(400).json({message : 'L\'id de la sauce est inexistente'})
+        return
     }
 }
 
 exports.deleteOneSauce = async (req,res) => {
 
-    let sauce 
-
     try {        
-        sauce = await Sauce.findOne({_id: req.params.id})
-    }  catch {
-        if(!sauce) {
-            res.status(400).json({message : 'Non-existent sauce'})  // get une sauce qui n'existe pas
-            return
-        }
+        await Sauce.findOne({_id: req.params.id})
+    }  catch(error) {
+        return res.status(404).json({ message : "L'id de la sauce est inexistente" })
     }
 
     try {
@@ -188,21 +144,39 @@ exports.likeAndDislike = async (req, res) => {
     const likeStatus = req.body.like
     const userId = req.body.userId
 
+    const goodLikeStatus = likeStatus === 1 || likeStatus === -1 || likeStatus === 0
+    if(!goodLikeStatus) {
+        return res.status(400).json({ message : "Le like doit être un 1 ou 0 ou -1"})
+    }
     // If the user like the sauce the like is increase to one
+
     if(likeStatus === 1) {
         try {
-            await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: +1 }, $push:{ usersLiked: userId } })
+            const sauce = await Sauce.findOne({_id: req.params.id})
+
+            if(sauce.usersLiked.includes(sauce.userId)) {
+                console.log(sauce.usersLiked)
+                res.status(400).json({ message : 'Unauthorized'})
+                return 
+            }
+            else if(sauce.usersDisliked.includes(sauce.userId)) {
+                return res.status(400).json({message : 'You need to decreased your dislike before increased the like'})
+            }
+
+            await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: +1 }, $push:{ usersLiked: userId }})
             res.status(200).json({message: 'Like has been increased'})
-        } catch {
+        } catch(error) {
             console.log(error)
-            res.status(400).json({ error })
+            res.status(400).json({ message : "L'id de la sauce est inexistente"})
         }
     }
 
     // If the user decides to remove their like or dislike
 
     else if(likeStatus === 0) {
-        const sauce = await Sauce.findOne({ _id: req.params.id })
+        try {
+            const sauce = await Sauce.findOne({_id: req.params.id})
+
             if(sauce.usersLiked.includes(sauce.userId)) {
                 try {
                     await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: -1 }, $pull:{ usersLiked: userId }})
@@ -223,32 +197,27 @@ exports.likeAndDislike = async (req, res) => {
                 res.status(400).json({ message: "Vous n'avez ni like, ni dislike"})
             }
         }
-
+        catch(error) {
+            res.status(400).json({message : "L'id de la sauce est inexistente"})
+        }
+    }
     //If user don't like the sauce  
+
     else if(likeStatus === -1) {
         try {
+            const sauce = await Sauce.findOne({_id: req.params.id})
+            if(sauce.usersDisliked.includes(sauce.userId)) {
+                console.log(sauce.usersDisliked)
+                res.status(400).json({ message : 'Unauthorized'})
+                return 
+            }
+            else if(sauce.usersLiked.includes(sauce.userId)) {
+                return res.status(400).json({message : 'You need to decreased your like before increased the dislike'})
+            }
             await Sauce.updateOne({ _id: req.params.id }, { $inc: { dislikes: +1}, $push: { usersDisliked: userId}})
             res.status(200).json({ message: 'Dislike has been increased'})
         }   catch(error){
-            console.log(error)
-            res.status(400).json({ error })
+            res.status(400).json({ message : "L'id de la sauce est inexistente"})
         }
     }
 }
-
-
-
-/*
-    const sauceObject = req.file ? {
-        ...JSON.parse(req.body.sauce),
-        imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
-    } : req.body ; // retrieves the object if it has already been transmitted
-*/
-
-/*
-exports.deleteAllSauce =  (req, res) => {
-    Sauce.deleteMany()
-        .then(() => { res.status(200).json({message : 'Objet supprimé'})})
-        .catch(error => res.status(401).json({error}))
-};
-*/

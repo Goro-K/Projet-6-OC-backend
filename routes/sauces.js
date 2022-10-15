@@ -6,7 +6,7 @@ const multer = require('../middleware/multer-config');
 
 
 router
-    .get('/', authorization, sauceCtrl.getAllSauce)
+    .get('/', authorization, sauceCtrl.getAllSauces)
     .post('/', authorization, multer, sauceCtrl.createSauce)
     .get('/:id', authorization, sauceCtrl.getOneSauce)
     .put('/:id', authorization, multer, sauceCtrl.modifySauce)
