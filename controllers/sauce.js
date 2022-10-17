@@ -104,6 +104,11 @@ exports.modifySauce = async (req, res) => {
    
     try {
         const sauce = await Sauce.findOne({_id: req.params.id})
+        console.log(sauce.likes)
+        console.log(sauceObject.likes)
+        if(sauce.likes !== sauceObject.likes || sauce.dislikes !== sauceObject.dislikes) {
+            return res.status(400).json({message : "Like and dislike can't be modified"})
+        }
         await sauce.updateOne({ _id: req.params.id, ...sauceObject })
         res.status(200).json({message: 'Modified sauce !'})
     } catch(error) {

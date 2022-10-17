@@ -10,15 +10,12 @@ const TOKEN = process.env.TOKEN
 
 exports.signup = async (req, res) => {
     const body = req.body;
-    console.log(body)
     const regexMail = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)+$/
-    const passwordStringify = JSON.stringify(body.password)
-    const passwordTrim = passwordStringify.trim(passwordStringify)
+    const regexPassword = /^\w+[\.-]?\w+$/
 
-    if(passwordStringify !== passwordTrim) {
-        return res.status(400).json({message : "Your password cannot have whitespace"})
+    if(!regexPassword.test(body.password)) {
+        return res.status(400).json({message : "Incorrect password"})
     }
-    console.log(body.password)
     if(!regexMail.test(body.email)) {
         return res.status(400).json({message : "Incorrect email"})
     } 
