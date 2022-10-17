@@ -14,10 +14,6 @@ const storage= multer.diskStorage({
     filename: (req, file, callback) => {
         const name = file.originalname.split(' ').join('_');
         const extension = MIME_TYPES[file.mimetype]
-    /*  if(!extension) {
-            res.status(400).json({message : "Please upload a file type of jpeg or png"})
-        }
-    */
         callback(null, name + Date.now() + "." + extension);
     }
 })

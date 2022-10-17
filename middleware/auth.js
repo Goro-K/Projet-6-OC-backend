@@ -6,7 +6,7 @@ const TOKEN = process.env.TOKEN
 
 module.exports = (req,res, next) => {
     try {
-        const token = (req.headers.authorization || undefined).split(' ')[1] 
+        const token = (req.headers.authorization || '').split(' ')[1] 
         const decodedToken = jwt.verify(token, TOKEN);
         const userId = decodedToken.userId;
         req.auth = {
@@ -14,7 +14,6 @@ module.exports = (req,res, next) => {
         };
         next();
     } catch(error) {
-        console.log(error)
         res.status(403).json({ message : 'unauthorized request' })
     }
 }

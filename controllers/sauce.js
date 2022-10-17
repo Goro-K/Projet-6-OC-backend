@@ -1,15 +1,5 @@
 const Sauce = require('../models/Sauce')
 
-async function verifyField(res, sauceObject) {
-    try {
-        sauceParsed = JSON.parse(sauceObject)  
-    } catch(error) {
-        console.log(error)
-        res.status(400).json({message : 'A field is not valid'})  // because the user goes through the api to add a sauce with a missing element
-        return
-    }
-}
-
 exports.getAllSauces = async (req, res) => {
         try {
             const sauces = await Sauce.find()        // allows to find all the objects
@@ -36,9 +26,13 @@ exports.createSauce = async (req, res) => {
 
     let sauceParsed
 
-    verifyField(res, sauceObject)
-
-    sauceParsed = JSON.parse(sauceObject)
+    try {
+        sauceParsed = JSON.parse(sauceObject)  
+    } catch(error) {
+        console.log(error)
+        res.status(400).json({message : 'A field is not valid'})  // because the user goes through the api to add a sauce with a missing element
+        return
+    }
 
     delete sauceParsed._id   // Delete the id to later generate a new id for the database
     delete sauceParsed.userId   // Delete the id of the person who created the object
@@ -61,7 +55,7 @@ exports.createSauce = async (req, res) => {
         res.status(201).json({ message : 'Registered sauce' })
     } catch(error){
         console.log(error)
-        res.status(400).json({ error })
+        res.status(400).json({ error }) // Si on met un string au lieu d'un number
         return
     }
 
@@ -79,11 +73,7 @@ exports.modifySauce = async (req, res) => {
             }
         }
         catch(error){
-            if(!sauceObject) {
-                res.status(404).json({message : 'Sauce manquante'}) 
-                return
-            }
-            res.status(500).json({error})
+            return res.status(400).json({message : "Sauce manquante"})
         }
     }
     else {
@@ -102,17 +92,21 @@ exports.modifySauce = async (req, res) => {
 
     delete sauceObject.userId // to prevent a user from creating an object in their name and then modifying it to assign it to someone else
    
-    try {
+    try{
         const sauce = await Sauce.findOne({_id: req.params.id})
-        console.log(sauce.likes)
-        console.log(sauceObject.likes)
+        if(!sauce) {
+            return res.status(404).json({message: "Sauce inexistante"})
+        }
         if(sauce.likes !== sauceObject.likes || sauce.dislikes !== sauceObject.dislikes) {
             return res.status(400).json({message : "Like and dislike can't be modified"})
+        }
+        if(sauce.usersLiked !== sauceObject.usersLiked || sauce.usersDisliked !== sauceObject.usersDisliked) {
+            return res.status(400).json({message : "UserLike and Userdislike can't be modified"})
         }
         await sauce.updateOne({ _id: req.params.id, ...sauceObject })
         res.status(200).json({message: 'Modified sauce !'})
     } catch(error) {
-        res.status(400).json({message : 'L\'id de la sauce est inexistente'})
+        return res.status(400).json({ error })
     }
 };
 
@@ -139,7 +133,7 @@ exports.deleteOneSauce = async (req,res) => {
         await Sauce.deleteOne({ _id: req.params.id })
         res.status(200).json({message: 'Deleted sauce'})
     }   catch(error) {
-        console.log(error)
+        console.log(`Une erreur est survenue : ${error.message}`)
         res.status(400).json({error})
     }
 }
@@ -195,7 +189,6 @@ exports.likeAndDislike = async (req, res) => {
                     await Sauce.updateOne({ _id: req.params.id }, { $inc:{ dislikes: -1 }, $pull: { usersDisliked: userId }})
                     res.status(200).json({ message: 'Dislike has been decreased'})
                 }   catch(error) {
-                    console.log(error)
                     res.status(400).json({ error })
                 }
             }   else {
