@@ -6,16 +6,11 @@ dotenv.config()
 
 const TOKEN = process.env.TOKEN
 
-// User registration
 
 exports.signup = async (req, res) => {
     const body = req.body;
     const regexMail = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)+$/
-    const regexPassword = /^\w+[\.-]?\w+$/
 
-    if(!regexPassword.test(body.password)) {
-        return res.status(400).json({message : "Incorrect password"})
-    }
     if(!regexMail.test(body.email)) {
         return res.status(400).json({message : "Incorrect email"})
     } 
@@ -39,7 +34,6 @@ exports.signup = async (req, res) => {
         await user.save()
         res.status(201).json({message: 'User created'})
     }   catch(error) {
-        console.log(error)
         res.status(500).json({error})
     }
 

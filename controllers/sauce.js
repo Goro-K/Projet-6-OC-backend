@@ -91,17 +91,16 @@ exports.modifySauce = async (req, res) => {
     }
 
     delete sauceObject.userId // to prevent a user from creating an object in their name and then modifying it to assign it to someone else
-   
+    // To prevent a user form modify his likes or other param
+    delete sauceObject.usersLiked
+    delete sauceObject.usersDisliked
+    delete sauceObject.likes
+    delete sauceObject.dislikes
+    
     try{
         const sauce = await Sauce.findOne({_id: req.params.id})
         if(!sauce) {
             return res.status(404).json({message: "Sauce inexistante"})
-        }
-        if(sauce.likes !== sauceObject.likes || sauce.dislikes !== sauceObject.dislikes) {
-            return res.status(400).json({message : "Like and dislike can't be modified"})
-        }
-        if(sauce.usersLiked !== sauceObject.usersLiked || sauce.usersDisliked !== sauceObject.usersDisliked) {
-            return res.status(400).json({message : "UserLike and Userdislike can't be modified"})
         }
         await sauce.updateOne({ _id: req.params.id, ...sauceObject })
         res.status(200).json({message: 'Modified sauce !'})
