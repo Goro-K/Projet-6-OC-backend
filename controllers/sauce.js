@@ -2,9 +2,10 @@ const Sauce = require('../models/Sauce')
 
 exports.getAllSauces = async (req, res) => {
         try {
-            const sauces = await Sauce.find()        // allows to find all the objects
+            const sauces = await Sauce.find() 
             res.status(200).json(sauces)
         }   catch(error) {
+            console.log(`Une erreur est survenue : ${error.message}`)
             res.status(500).json({ error })
         }
 };
@@ -14,7 +15,6 @@ exports.createSauce = async (req, res) => {
     const sauceObject = req.body.sauce
 
     if(!sauceObject) {
-        console.log(sauceObject)
         res.status(400).json({ message : 'Missing sauce' })
         return
     }
@@ -29,7 +29,7 @@ exports.createSauce = async (req, res) => {
     try {
         sauceParsed = JSON.parse(sauceObject)  
     } catch(error) {
-        console.log(error)
+        console.log(`Une erreur est survenue : ${error.message}`)
         res.status(400).json({message : 'A field is not valid'})  // because the user goes through the api to add a sauce with a missing element
         return
     }
@@ -54,15 +54,14 @@ exports.createSauce = async (req, res) => {
         await sauce.save()
         res.status(201).json({ message : 'Registered sauce' })
     } catch(error){
-        console.log(error)
-        res.status(400).json({ error }) // Si on met un string au lieu d'un number
+        console.log(`Une erreur est survenue : ${error.message}`)
+        res.status(400).json({ error }) // If you put a string instead of a number // He can be error : 500
         return
     }
 
 }
 
 exports.modifySauce = async (req, res) => {
-    // Try catch sur le parse et verifier que body n'est pas vide
     let sauceObject
 
     if (req.file) {
@@ -73,7 +72,8 @@ exports.modifySauce = async (req, res) => {
             }
         }
         catch(error){
-            return res.status(400).json({message : "Sauce manquante"})
+            console.log(`Une erreur est survenue : ${error.message}`)
+            return res.status(400).json({message : "Missing Sauce"})
         }
     }
     else {
@@ -91,7 +91,8 @@ exports.modifySauce = async (req, res) => {
     }
 
     delete sauceObject.userId // to prevent a user from creating an object in their name and then modifying it to assign it to someone else
-    // To prevent a user form modify his likes or other param
+    
+    // To prevent a user from modify like/dislike
     delete sauceObject.usersLiked
     delete sauceObject.usersDisliked
     delete sauceObject.likes
@@ -100,12 +101,13 @@ exports.modifySauce = async (req, res) => {
     try{
         const sauce = await Sauce.findOne({_id: req.params.id})
         if(!sauce) {
-            return res.status(404).json({message: "Sauce inexistante"})
+            return res.status(404).json({message: "Non-existent sauce"})
         }
         await sauce.updateOne({ _id: req.params.id, ...sauceObject })
         res.status(200).json({message: 'Modified sauce !'})
     } catch(error) {
-        return res.status(400).json({ error })
+        console.log(`Une erreur est survenue : ${error.message}`)
+        return res.status(400).json({ message : "Non-existent sauce id"})
     }
 };
 
@@ -115,7 +117,8 @@ exports.getOneSauce = async (req, res) => {
         const sauce = await Sauce.findOne({_id: req.params.id})
         res.status(200).json(sauce)
     }  catch(error) {
-        res.status(400).json({message : 'L\'id de la sauce est inexistente'})
+        console.log(`Une erreur est survenue : ${error.message}`)
+        res.status(400).json({message : 'Non-existent sauce id'})
         return
     }
 }
@@ -125,7 +128,8 @@ exports.deleteOneSauce = async (req,res) => {
     try {        
         await Sauce.findOne({_id: req.params.id})
     }  catch(error) {
-        return res.status(404).json({ message : "L'id de la sauce est inexistente" })
+        console.log(`Une erreur est survenue : ${error.message}`)
+        return res.status(404).json({ message : "Non-existent sauce id" })
     }
 
     try {
@@ -144,17 +148,22 @@ exports.likeAndDislike = async (req, res) => {
 
     const goodLikeStatus = likeStatus === 1 || likeStatus === -1 || likeStatus === 0
     if(!goodLikeStatus) {
-        return res.status(400).json({ message : "Le like doit être un 1 ou 0 ou -1"})
+        return res.status(400).json({ message : "The like must be a 1 or 0 or -1"})
     }
-    // If the user like the sauce the like is increase to one
+    
+    // If the user like the sauce 
 
     if(likeStatus === 1) {
         try {
             const sauce = await Sauce.findOne({_id: req.params.id})
 
+            if(userId !== sauce.userId) {
+                res.status(403).json({ message : 'Unauthorized'})
+                return 
+            }
+
             if(sauce.usersLiked.includes(sauce.userId)) {
-                console.log(sauce.usersLiked)
-                res.status(400).json({ message : 'Unauthorized'})
+                res.status(403).json({ message : 'Unauthorized'})
                 return 
             }
             else if(sauce.usersDisliked.includes(sauce.userId)) {
@@ -164,8 +173,8 @@ exports.likeAndDislike = async (req, res) => {
             await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: +1 }, $push:{ usersLiked: userId }})
             res.status(200).json({message: 'Like has been increased'})
         } catch(error) {
-            console.log(error)
-            res.status(400).json({ message : "L'id de la sauce est inexistente"})
+            console.log(`Une erreur est survenue : ${error.message}`)
+            res.status(400).json({ message : "Non-existent sauce id"})
         }
     }
 
@@ -175,11 +184,16 @@ exports.likeAndDislike = async (req, res) => {
         try {
             const sauce = await Sauce.findOne({_id: req.params.id})
 
+            if(userId !== sauce.userId) {
+                res.status(403).json({ message : 'Unauthorized'})
+                return 
+            }
             if(sauce.usersLiked.includes(sauce.userId)) {
                 try {
                     await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: -1 }, $pull:{ usersLiked: userId }})
                     res.status(200).json({ message: 'Like has been decreased'})
                 }   catch(error) {
+                    console.log(`Une erreur est survenue : ${error.message}`)
                     res.status(400).json({ error })
                 }
             }
@@ -188,23 +202,30 @@ exports.likeAndDislike = async (req, res) => {
                     await Sauce.updateOne({ _id: req.params.id }, { $inc:{ dislikes: -1 }, $pull: { usersDisliked: userId }})
                     res.status(200).json({ message: 'Dislike has been decreased'})
                 }   catch(error) {
+                    console.log(`Une erreur est survenue : ${error.message}`)
                     res.status(400).json({ error })
                 }
             }   else {
-                res.status(400).json({ message: "Vous n'avez ni like, ni dislike"})
+                res.status(400).json({ message: "You have neither liked nor disliked"})
             }
         }
         catch(error) {
-            res.status(400).json({message : "L'id de la sauce est inexistente"})
+            console.log(`Une erreur est survenue : ${error.message}`)
+            res.status(400).json({message : "Non-existent sauce id"})
         }
     }
+
     //If user don't like the sauce  
 
     else if(likeStatus === -1) {
         try {
             const sauce = await Sauce.findOne({_id: req.params.id})
+
+            if(userId !== sauce.userId) {
+                res.status(403).json({ message : 'Unauthorized'})
+                return 
+            }
             if(sauce.usersDisliked.includes(sauce.userId)) {
-                console.log(sauce.usersDisliked)
                 res.status(400).json({ message : 'Unauthorized'})
                 return 
             }
@@ -214,7 +235,8 @@ exports.likeAndDislike = async (req, res) => {
             await Sauce.updateOne({ _id: req.params.id }, { $inc: { dislikes: +1}, $push: { usersDisliked: userId}})
             res.status(200).json({ message: 'Dislike has been increased'})
         }   catch(error){
-            res.status(400).json({ message : "L'id de la sauce est inexistente"})
+            console.log(`Une erreur est survenue : ${error.message}`)
+            res.status(400).json({ message : "Non-existent sauce id"})
         }
     }
 }

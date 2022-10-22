@@ -26,6 +26,7 @@ exports.signup = async (req, res) => {
     try {
         user.password = await bcrypt.hash(user.password, 10)
     } catch(error) {
+        console.log(`Une erreur est survenue : ${error.message}`)
         res.status(500).json({ error })
     }
 
@@ -34,6 +35,7 @@ exports.signup = async (req, res) => {
         await user.save()
         res.status(201).json({message: 'User created'})
     }   catch(error) {
+        console.log(`Une erreur est survenue : ${error.message}`)
         res.status(500).json({error})
     }
 
@@ -48,11 +50,11 @@ exports.login = async (req, res) => {
     try {
         user = await User.findOne({ email: body.email })
     } catch(error) {
-        console.log(error)
+        console.log(`Une erreur est survenue : ${error.message}`)
         return res.status(400).json({message : "User introuvable"})
     }
 
-    if(user) {
+    try {
         const validPassword = await bcrypt.compare(body.password, user.password);
         
         if(validPassword) {
@@ -67,7 +69,8 @@ exports.login = async (req, res) => {
         } else {
             res.status(401).json({ message : 'Incorrect username/password pair' })
         }
-    } else {
-        res.status(401).json({ message : 'Incorrect username/password pair' })
+    } catch(error) {
+        console.log(`Une erreur est survenue : ${error.message}`)
+        res.status(401).json({ message : `Incorrect username/password pair ${error.message}` })
     }
 }
