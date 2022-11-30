@@ -123,18 +123,23 @@ exports.getOneSauce = async (req, res) => {
     }
 }
 
-exports.deleteOneSauce = async (req,res) => {
-
+exports.deleteOneSauce = async (req,res) => { 
+    let sauce
+    
     try {        
-        await Sauce.findOne({_id: req.params.id})
+        sauce = await Sauce.findOne({_id: req.params.id})
     }  catch(error) {
         console.log(`Une erreur est survenue : ${error.message}`)
         return res.status(404).json({ message : "Non-existent sauce id" })
     }
+    
+    if (req.auth.userId !== sauce.userId) {
+        return res.status(403).json({ message : "Unauthorized"})
+    }
 
-    try {
+    try {        
         await Sauce.deleteOne({ _id: req.params.id })
-        res.status(200).json({message: 'Deleted sauce'})
+        return res.status(200).json({message: 'Deleted sauce'})
     }   catch(error) {
         console.log(`Une erreur est survenue : ${error.message}`)
         res.status(400).json({error})
@@ -144,8 +149,7 @@ exports.deleteOneSauce = async (req,res) => {
 
 exports.likeAndDislike = async (req, res) => {
     const likeStatus = req.body.like
-    const userId = req.body.userId
-
+    const userId = req.auth.userId
     const goodLikeStatus = likeStatus === 1 || likeStatus === -1 || likeStatus === 0
     if(!goodLikeStatus) {
         return res.status(400).json({ message : "The like must be a 1 or 0 or -1"})
@@ -156,17 +160,11 @@ exports.likeAndDislike = async (req, res) => {
     if(likeStatus === 1) {
         try {
             const sauce = await Sauce.findOne({_id: req.params.id})
-
-            if(userId !== sauce.userId) {
+            if(sauce.usersLiked.includes(userId)) {
                 res.status(403).json({ message : 'Unauthorized'})
                 return 
             }
-
-            if(sauce.usersLiked.includes(sauce.userId)) {
-                res.status(403).json({ message : 'Unauthorized'})
-                return 
-            }
-            else if(sauce.usersDisliked.includes(sauce.userId)) {
+            else if(sauce.usersDisliked.includes(userId)) {
                 return res.status(400).json({message : 'You need to decreased your dislike before increased the like'})
             }
 
@@ -184,11 +182,7 @@ exports.likeAndDislike = async (req, res) => {
         try {
             const sauce = await Sauce.findOne({_id: req.params.id})
 
-            if(userId !== sauce.userId) {
-                res.status(403).json({ message : 'Unauthorized'})
-                return 
-            }
-            if(sauce.usersLiked.includes(sauce.userId)) {
+            if(sauce.usersLiked.includes(userId)) {
                 try {
                     await Sauce.updateOne({ _id: req.params.id }, { $inc:{ likes: -1 }, $pull:{ usersLiked: userId }})
                     res.status(200).json({ message: 'Like has been decreased'})
@@ -197,7 +191,7 @@ exports.likeAndDislike = async (req, res) => {
                     res.status(400).json({ error })
                 }
             }
-            else if(sauce.usersDisliked.includes(sauce.userId)) {
+            else if(sauce.usersDisliked.includes(userId)) {
                 try {
                     await Sauce.updateOne({ _id: req.params.id }, { $inc:{ dislikes: -1 }, $pull: { usersDisliked: userId }})
                     res.status(200).json({ message: 'Dislike has been decreased'})
@@ -221,15 +215,11 @@ exports.likeAndDislike = async (req, res) => {
         try {
             const sauce = await Sauce.findOne({_id: req.params.id})
 
-            if(userId !== sauce.userId) {
+            if(sauce.usersDisliked.includes(userId)) {
                 res.status(403).json({ message : 'Unauthorized'})
                 return 
             }
-            if(sauce.usersDisliked.includes(sauce.userId)) {
-                res.status(400).json({ message : 'Unauthorized'})
-                return 
-            }
-            else if(sauce.usersLiked.includes(sauce.userId)) {
+            else if(sauce.usersLiked.includes(userId)) {
                 return res.status(400).json({message : 'You need to decreased your like before increased the dislike'})
             }
             await Sauce.updateOne({ _id: req.params.id }, { $inc: { dislikes: +1}, $push: { usersDisliked: userId}})
